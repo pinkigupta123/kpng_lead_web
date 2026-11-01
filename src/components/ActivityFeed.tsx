@@ -52,7 +52,7 @@ const parseStatus = (remarks: string | null) => {
 export default function ActivityFeed({ timelines }: { timelines: CustomerTimeline[] }) {
   const [filter, setFilter] = useState<'all' | Group>('all')
 
-  const sorted = useMemo(() => [...timelines].sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at)), [timelines])
+  const sorted = useMemo(() => [...timelines].sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at) || b.id - a.id), [timelines])
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: sorted.length }
     sorted.forEach((t) => { const g = (KIND[t.action] ?? FALLBACK).group; c[g] = (c[g] ?? 0) + 1 })
@@ -71,7 +71,13 @@ export default function ActivityFeed({ timelines }: { timelines: CustomerTimelin
   })
 
   return (
-    <Card sx={{ p: 0, display: 'flex', flexDirection: 'column', flex: 1, minHeight: 360, maxHeight: { xs: 560, lg: 'none' } }}>
+    <Card sx={{
+      p: 0, display: 'flex', flexDirection: 'column',
+      // desktop: pinned to its column, so its height always equals the left column's height and the entries scroll inside
+      position: { lg: 'absolute' }, inset: { lg: 0 },
+      // stacked layout (small screens): normal flow, capped
+      height: { xs: 'auto', lg: 'auto' }, minHeight: { xs: 360 }, maxHeight: { xs: 'calc(100vh - 160px)', lg: 'none' },
+    }}>
       <Box sx={{ p: 2.5, pb: 1.5, borderBottom: '1px solid #E2E8F0' }}>
         <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', mb: 1.5 }}>
           <Typography variant="h6">Activity &amp; conversation log</Typography>

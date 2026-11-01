@@ -6,6 +6,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import api, { errMsg } from '../api/client'
 import { useFeedback } from '../components/Feedback'
 import { useAuth } from '../store/auth'
+import { localDate } from '../dates'
 import { STATUSES, statusLabel, type CustomerStatus } from '../types'
 
 interface F {
@@ -72,7 +73,7 @@ export default function LeadForm({ embedded = false, leadId, onDone, onCancel }:
         if (onDone) onDone(Number(id))
         else nav(`/leads/${id}`)
       } else {
-        const r = await api.post('/lead/customers', data)
+        const r = await api.post('/lead/customers', { ...data, status: 'new' })
         if (r.data.duplicate) {
           const dup = r.data.customer?.data || r.data.customer
           const mine = me?.role === 'super_admin' || dup?.executive_id === me?.id
@@ -114,7 +115,7 @@ export default function LeadForm({ embedded = false, leadId, onDone, onCancel }:
     <Grid size={{ xs: 12, md: opts.size ?? 6 }}>
       <TextField
         fullWidth label={label} type={opts.type} multiline={opts.multiline} minRows={opts.multiline ? 3 : undefined}
-        slotProps={{ ...(opts.type === 'date' ? { inputLabel: { shrink: true } } : {}), ...(ro ? { htmlInput: { readOnly: true, tabIndex: -1 } } : {}) }}
+        slotProps={{ ...(opts.type === 'date' ? { inputLabel: { shrink: true } } : {}), ...(ro ? { htmlInput: { readOnly: true, tabIndex: -1 } } : {}), ...(opts.type === 'date' && !ro ? { htmlInput: { min: localDate() } } : {}) }}
         sx={ro ? { '& .MuiOutlinedInput-root': { bgcolor: '#F1F5F9' }, '& input': { color: 'text.secondary', cursor: 'not-allowed' } } : undefined}
         {...register(name, opts.required ? { required: opts.required } : {})}
         error={!!errors[name]} helperText={errors[name]?.message as string | undefined}
@@ -141,9 +142,16 @@ export default function LeadForm({ embedded = false, leadId, onDone, onCancel }:
           {field('device_model', 'Device model', { lock: true })}
           {field('customer_query', 'Customer query', { multiline: true, size: 12 })}
           <Grid size={{ xs: 12, md: 6 }}>
-            <TextField select fullWidth label="Status" defaultValue="new" {...register('status')} slotProps={{ select: { native: true } }}>
-              {STATUSES.map((s) => <option key={s} value={s}>{statusLabel(s)}</option>)}
-            </TextField>
+            {edit ? (
+              <TextField select fullWidth label="Status" defaultValue="new" {...register('status')} slotProps={{ select: { native: true } }}>
+                {STATUSES.map((s) => <option key={s} value={s}>{statusLabel(s)}</option>)}
+              </TextField>
+            ) : (
+              // a new lead always starts as "New"; it changes later through Log update / follow-ups
+              <TextField fullWidth label="Status" value={statusLabel('new')} helperText="New leads always start as New"
+                slotProps={{ htmlInput: { readOnly: true, tabIndex: -1 } }}
+                sx={{ '& .MuiOutlinedInput-root': { bgcolor: '#F1F5F9' }, '& input': { color: 'text.secondary', cursor: 'not-allowed' } }} />
+            )}
           </Grid>
           {field('followup_date', 'Follow-up date', { type: 'date', lock: true })}
           {field('notes', 'Notes / remarks', { multiline: true, size: 12, lock: true })}

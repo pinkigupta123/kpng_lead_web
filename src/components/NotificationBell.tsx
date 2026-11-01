@@ -102,7 +102,7 @@ export default function NotificationBell() {
                 </Box>
                 <Tooltip title="Mark done">
                   <IconButton size="small" color="success"
-                    onClick={(e) => { e.stopPropagation(); setAnchor(null); setComplete({ id: f.id, scheduled_for: f.scheduled_for, customerName: f.customer?.name }) }}>
+                    onClick={(e) => { e.stopPropagation(); setAnchor(null); setComplete({ id: f.id, scheduled_for: f.scheduled_for, customerName: f.customer?.name, status: f.customer?.status }) }}>
                     <CheckIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>

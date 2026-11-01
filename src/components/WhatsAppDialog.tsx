@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, TextField, ToggleButton, ToggleButtonGroup } from '@mui/material'
 import WhatsAppIcon from '@mui/icons-material/WhatsApp'
 import api from '../api/client'
+import { welcomeMessage } from './ShareLeadDialog'
 
 export interface WhatsAppLead {
   id: number
@@ -11,14 +12,26 @@ export interface WhatsAppLead {
 }
 
 export const templateText = (n: number, c: { name: string; interested_product?: string | null }) => {
-  const product = c.interested_product || 'laptop service'
   switch (n) {
     case 1:
-      return `Hello ${c.name},\n\nThank you for visiting our store. We have registered your enquiry regarding ${product}.\n\nPlease feel free to contact us if you have any questions.\n\nThank you.`
+      // Template 1 is the new-lead welcome message (same text as the "Lead added" dialog)
+      return welcomeMessage(c.name, c.interested_product)
     case 2:
-      return `Hello ${c.name},\n\nWe are following up regarding your enquiry.\n\nPlease let us know if you're interested.\n\nThank you.`
+      return `Hello ${c.name},
+
+We are following up regarding your enquiry.
+
+Please let us know if you're interested.
+
+Thank you.`
     default:
-      return `Hello ${c.name},\n\nThank you for choosing us.\n\nIf you need any assistance, feel free to contact us anytime.\n\nRegards.`
+      return `Hello ${c.name},
+
+Thank you for choosing us.
+
+If you need any assistance, feel free to contact us anytime.
+
+Regards.`
   }
 }
 

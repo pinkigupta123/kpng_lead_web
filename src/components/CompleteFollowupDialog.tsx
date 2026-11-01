@@ -3,11 +3,14 @@ import { Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Te
 import api, { errMsg } from '../api/client'
 import { useFeedback } from './Feedback'
 import { STATUSES, statusLabel } from '../types'
+import { localDate } from '../dates'
 
 export interface CompleteTarget {
   id: number
   scheduled_for: string
   customerName?: string
+  /** the lead's current status, pre-selected in the dialog */
+  status?: string
 }
 
 /** "Mark follow-up done": outcome note, optional status change, optional next follow-up date. */
@@ -21,7 +24,7 @@ export default function CompleteFollowupDialog({ target, onClose, onDone }: { ta
   useEffect(() => {
     if (target) {
       setOutcome('')
-      setStatus('')
+      setStatus(target.status ?? '')
       setNext('')
     }
   }, [target])
@@ -33,7 +36,7 @@ export default function CompleteFollowupDialog({ target, onClose, onDone }: { ta
     try {
       await api.post(`/lead/followups/${target.id}/complete`, {
         outcome: outcome.trim() || undefined,
-        status: status || undefined,
+        status: status && status !== target.status ? status : undefined, // only send a real change
         next_followup_date: next || undefined,
       })
       notify('Follow-up marked as done')
@@ -46,7 +49,7 @@ export default function CompleteFollowupDialog({ target, onClose, onDone }: { ta
     }
   }
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = localDate()
 
   return (
     <Dialog open onClose={saving ? undefined : onClose} fullWidth maxWidth="xs">
@@ -58,8 +61,7 @@ export default function CompleteFollowupDialog({ target, onClose, onDone }: { ta
       </DialogTitle>
       <DialogContent sx={{ display: 'grid', gap: 2, pt: '16px !important' }}>
         <TextField label="What happened? (outcome)" multiline minRows={3} value={outcome} onChange={(e) => setOutcome(e.target.value)} placeholder="e.g. Called, customer will visit on Saturday" autoFocus />
-        <TextField select label="Update lead status" value={status} onChange={(e) => setStatus(e.target.value)}>
-          <MenuItem value="">Keep current status</MenuItem>
+        <TextField select label="Lead status" value={status} onChange={(e) => setStatus(e.target.value)}>
           {STATUSES.map((s) => <MenuItem key={s} value={s}>{statusLabel(s)}</MenuItem>)}
         </TextField>
         <TextField type="date" label="Next follow-up (optional)" value={next} onChange={(e) => setNext(e.target.value)}

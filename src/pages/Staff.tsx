@@ -135,7 +135,7 @@ export default function Staff() {
           </>
         }
       />
-      <Paper sx={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 380 }}>
+      <Paper sx={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 380, '& .MuiTableBody-root .MuiTableRow-root:last-child .MuiTableCell-root': { borderBottom: 0 } }}>
         <TableContainer sx={{ flex: 1, minHeight: 0 }}>
           <Table stickyHeader>
             <TableHead>

@@ -114,7 +114,7 @@ export default function Layout() {
           sx={{ display: { xs: 'none', sm: 'block' }, '& .MuiDrawer-paper': { width: W, border: 0, borderRight: `1px solid ${LINE}` } }}>{drawer}</Drawer>
       </Box>
 
-      <Box component="main" sx={{ flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 64px)', p: { xs: 2, md: 3 }, pt: { xs: 3, md: 3 }, mt: 8, width: { sm: `calc(100% - ${W}px)` } }}>
+      <Box component="main" sx={{ flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 64px)', p: { xs: 2, md: 3 }, pt: { xs: 3, md: 4 }, mt: 8, width: { sm: `calc(100% - ${W}px)` } }}>
         <Outlet />
       </Box>
     </Box>
