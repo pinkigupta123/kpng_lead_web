@@ -17,7 +17,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import api from '../api/client'
 import { useAuth } from '../store/auth'
-import { STATUSES, type Customer, type User } from '../types'
+import { STATUSES, statusLabel, type Customer, type User } from '../types'
 import StatusChip, { STATUS_COLORS } from '../components/StatusChip'
 import StatCard from '../components/StatCard'
 import PageHeader from '../components/PageHeader'
@@ -276,7 +276,7 @@ export default function Dashboard() {
         )}
         <TextField select size="small" label="Status" value={status} onChange={(e) => setStatus(e.target.value)} sx={{ width: 170 }}>
           <MenuItem value="all">All statuses</MenuItem>
-          {STATUSES.map((s) => <MenuItem key={s} value={s} sx={{ textTransform: 'capitalize' }}>{s}</MenuItem>)}
+          {STATUSES.map((s) => <MenuItem key={s} value={s}>{statusLabel(s)}</MenuItem>)}
         </TextField>
         <TextField select size="small" label="Period" value={period} onChange={(e) => setPeriod(e.target.value as Period)} sx={{ width: 170 }}>
           {PERIODS.map((p) => <MenuItem key={p.value} value={p.value}>{p.label}</MenuItem>)}
@@ -333,8 +333,8 @@ export default function Dashboard() {
                 </Box>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, justifyContent: 'center' }}>
                   {byStatus.map((s) => (
-                    <Chip key={s.name} size="small" label={`${s.name} · ${s.value}`}
-                      sx={{ bgcolor: `${STATUS_COLORS[s.name]}20`, color: STATUS_COLORS[s.name], textTransform: 'capitalize' }} />
+                    <Chip key={s.name} size="small" label={`${statusLabel(s.name)} · ${s.value}`}
+                      sx={{ bgcolor: `${STATUS_COLORS[s.name]}20`, color: STATUS_COLORS[s.name], textTransform: 'none' }} />
                   ))}
                 </Box>
               </Box>

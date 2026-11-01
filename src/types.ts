@@ -17,6 +17,9 @@ export interface User {
 }
 
 export const STATUSES = ['new', 'contacted', 'follow-up', 'interested', 'purchased', 'closed'] as const
+/** Display label for a status value: "follow-up" -> "Follow-up". */
+export const statusLabel = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s)
+
 export type CustomerStatus = (typeof STATUSES)[number]
 
 export interface CustomerTimeline {
@@ -27,6 +30,32 @@ export interface CustomerTimeline {
   created_by: number
   created_at: string
   creator?: User
+}
+
+export type FollowupState = 'upcoming' | 'due_today' | 'overdue' | 'done' | 'rescheduled' | 'cancelled'
+
+export interface Followup {
+  id: number
+  customer_id: number
+  scheduled_for: string
+  status: 'pending' | 'done' | 'rescheduled' | 'cancelled'
+  state: FollowupState
+  days_overdue: number
+  days_late: number
+  remarks: string | null
+  outcome: string | null
+  resolved_at: string | null
+  resolver?: User
+  created_at: string
+  customer?: {
+    id: number
+    name: string
+    mobile: string
+    interested_product: string | null
+    status: string
+    executive_id: number
+    executive: { id: number; name: string; branch: string } | null
+  }
 }
 
 export interface Customer {
@@ -48,6 +77,7 @@ export interface Customer {
   updated_at: string
   executive?: User
   timelines?: CustomerTimeline[]
+  followups?: Followup[]
 }
 
 export interface DashboardStats {

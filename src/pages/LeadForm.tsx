@@ -6,7 +6,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import api, { errMsg } from '../api/client'
 import { useFeedback } from '../components/Feedback'
 import { useAuth } from '../store/auth'
-import { STATUSES, type CustomerStatus } from '../types'
+import { STATUSES, statusLabel, type CustomerStatus } from '../types'
 
 interface F {
   name: string
@@ -31,12 +31,15 @@ const EMPTY: F = {
 interface Props {
   /** Render inside a side panel (no card wrapper); onDone/onCancel close the panel. */
   embedded?: boolean
+  /** Lead to edit when embedded (otherwise taken from the route). */
+  leadId?: number
   onDone?: (leadId?: number, opts?: { existing?: boolean; lead?: { id?: number; name: string; mobile: string; interested_product?: string } }) => void
   onCancel?: () => void
 }
 
-export default function LeadForm({ embedded = false, onDone, onCancel }: Props = {}) {
-  const { id } = useParams()
+export default function LeadForm({ embedded = false, leadId, onDone, onCancel }: Props = {}) {
+  const params = useParams()
+  const id = leadId != null ? String(leadId) : params.id
   const edit = !!id
   const nav = useNavigate()
   const { notify } = useFeedback()
@@ -56,7 +59,7 @@ export default function LeadForm({ embedded = false, onDone, onCancel }: Props =
         device_model: d.device_model || '', customer_query: d.customer_query || '', status: d.status,
         followup_date: d.followup_date ? String(d.followup_date).slice(0, 10) : '', notes: d.notes || '',
       })
-    }).catch(() => { notify('Failed to load lead', 'error'); nav(-1) }).finally(() => setFetching(false))
+    }).catch(() => { notify('Failed to load lead', 'error'); if (onCancel) onCancel(); else nav(-1) }).finally(() => setFetching(false))
   }, [id, reset, nav, notify])
 
   const onSubmit = async (data: F) => {
@@ -66,7 +69,8 @@ export default function LeadForm({ embedded = false, onDone, onCancel }: Props =
       if (edit) {
         await api.put(`/lead/customers/${id}`, data)
         notify('Lead updated')
-        nav(`/leads/${id}`)
+        if (onDone) onDone(Number(id))
+        else nav(`/leads/${id}`)
       } else {
         const r = await api.post('/lead/customers', data)
         if (r.data.duplicate) {
@@ -123,7 +127,7 @@ export default function LeadForm({ embedded = false, onDone, onCancel }: Props =
   return (
     <Wrapper sx={embedded ? {} : { p: { xs: 2, md: 4 }, maxWidth: 900 }}>
       {!embedded && <Typography variant="h5" sx={{ fontWeight: 700 }} gutterBottom>{edit ? 'Edit lead' : 'Add lead'}</Typography>}
-      {edit && <Alert severity="info" sx={{ mb: 2 }}>Customer details are locked. You can update the query, status, follow-up date and notes.</Alert>}
+      {edit && <Alert severity="info" sx={{ mb: 2 }}>Customer details, notes and the follow-up date are locked here. You can update the query and status. To add a note use Log update; to change the date use Schedule follow-up (both on the lead page).</Alert>}
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       <form onSubmit={handleSubmit(onSubmit)}>
         <Grid container spacing={2}>
@@ -138,11 +142,11 @@ export default function LeadForm({ embedded = false, onDone, onCancel }: Props =
           {field('customer_query', 'Customer query', { multiline: true, size: 12 })}
           <Grid size={{ xs: 12, md: 6 }}>
             <TextField select fullWidth label="Status" defaultValue="new" {...register('status')} slotProps={{ select: { native: true } }}>
-              {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+              {STATUSES.map((s) => <option key={s} value={s}>{statusLabel(s)}</option>)}
             </TextField>
           </Grid>
-          {field('followup_date', 'Follow-up date', { type: 'date' })}
-          {field('notes', 'Notes / remarks', { multiline: true, size: 12 })}
+          {field('followup_date', 'Follow-up date', { type: 'date', lock: true })}
+          {field('notes', 'Notes / remarks', { multiline: true, size: 12, lock: true })}
         </Grid>
         <Box sx={{ mt: 3, display: 'flex', gap: 1 }}>
           <Button type="submit" variant="contained" disabled={saving}>{saving ? 'Saving…' : edit ? 'Save changes' : 'Create lead'}</Button>

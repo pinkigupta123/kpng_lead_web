@@ -12,7 +12,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility'
 import { useNavigate } from 'react-router-dom'
 import api from '../api/client'
 import { useAuth } from '../store/auth'
-import { STATUSES, type Customer, type User } from '../types'
+import { STATUSES, statusLabel, type Customer, type User } from '../types'
 import StatusChip from '../components/StatusChip'
 import PageHeader from '../components/PageHeader'
 import LeadForm from './LeadForm'
@@ -36,6 +36,7 @@ export default function Leads() {
   const [execs, setExecs] = useState<User[]>([])
   const [loading, setLoading] = useState(false)
   const [panel, setPanel] = useState(false)
+  const [editId, setEditId] = useState<number | null>(null)
   const [reload, setReload] = useState(0)
   const [share, setShare] = useState<{ lead: ShareLead; created: boolean } | null>(null)
   const [wa, setWa] = useState<Customer | null>(null)
@@ -97,6 +98,7 @@ export default function Leads() {
 
   const onCreated = (id?: number, opts?: { existing?: boolean; lead?: ShareLead }) => {
     setPanel(false)
+    if (editId != null) return setReload((n) => n + 1)
     if (opts?.existing && id) return nav(`/leads/${id}`)
     setPage(0)
     setReload((n) => n + 1)
@@ -117,7 +119,7 @@ export default function Leads() {
         />
         <TextField select size="small" label="Status" value={status} onChange={(e) => reset(setStatus)(e.target.value)} sx={{ width: 150 }}>
           <MenuItem value="all">All</MenuItem>
-          {STATUSES.map((s) => <MenuItem key={s} value={s} sx={{ textTransform: 'capitalize' }}>{s}</MenuItem>)}
+          {STATUSES.map((s) => <MenuItem key={s} value={s}>{statusLabel(s)}</MenuItem>)}
         </TextField>
         {admin && (
           <>
@@ -137,7 +139,7 @@ export default function Leads() {
           <MenuItem value="desc">Latest first</MenuItem>
           <MenuItem value="asc">Oldest first</MenuItem>
         </TextField>
-                  <Button variant="contained" startIcon={<AddIcon />} onClick={() => setPanel(true)}>Add lead</Button>
+                  <Button variant="contained" startIcon={<AddIcon />} onClick={() => { setEditId(null); setPanel(true) }}>Add lead</Button>
           </>
         }
       />
@@ -166,7 +168,7 @@ export default function Leads() {
                   <TableCell align="right" sx={{ whiteSpace: 'nowrap' }} onClick={(e) => e.stopPropagation()}>
                     <Tooltip title="Share"><IconButton size="small" onClick={() => setWa(c)}><ShareIcon fontSize="small" /></IconButton></Tooltip>
                     <Tooltip title="View"><IconButton size="small" onClick={() => nav(`/leads/${c.id}`)}><VisibilityIcon fontSize="small" /></IconButton></Tooltip>
-                    <Tooltip title="Edit"><IconButton size="small" onClick={() => nav(`/leads/${c.id}/edit`)}><EditIcon fontSize="small" /></IconButton></Tooltip>
+                    <Tooltip title="Edit"><IconButton size="small" onClick={() => { setEditId(c.id); setPanel(true) }}><EditIcon fontSize="small" /></IconButton></Tooltip>
                   </TableCell>
                 </TableRow>
               ))}
@@ -188,11 +190,11 @@ export default function Leads() {
       {/* Add lead — right-hand side panel */}
       <Drawer anchor="right" open={panel} onClose={() => setPanel(false)} sx={{ '& .MuiDrawer-paper': { width: { xs: '100%', sm: 560 }, p: 0 } }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 3, height: 65, borderBottom: '1px solid #E2E8F0', flexShrink: 0 }}>
-          <Typography variant="h6">Add lead</Typography>
+          <Typography variant="h6">{editId != null ? 'Edit lead' : 'Add lead'}</Typography>
           <IconButton onClick={() => setPanel(false)}><CloseIcon /></IconButton>
         </Box>
         <Box sx={{ p: 3, overflowY: 'auto' }}>
-          {panel && <LeadForm embedded onDone={onCreated} onCancel={() => setPanel(false)} />}
+          {panel && <LeadForm key={editId ?? 'new'} embedded leadId={editId ?? undefined} onDone={onCreated} onCancel={() => setPanel(false)} />}
         </Box>
       </Drawer>
     </Box>

@@ -14,6 +14,7 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../store/auth'
 import api from '../api/client'
+import NotificationBell from './NotificationBell'
 
 const W = 260
 const INK = '#1E293B'
@@ -91,6 +92,7 @@ export default function Layout() {
         <Toolbar>
           <IconButton color="inherit" edge="start" onClick={() => setOpen(true)} sx={{ mr: 1, display: { sm: 'none' } }}><MenuIcon /></IconButton>
           <Typography sx={{ fontWeight: 600, flex: 1 }}>Lead Management</Typography>
+          <NotificationBell />
           <ButtonBase onClick={(e) => setAnchor(e.currentTarget)} sx={{ gap: 1, p: 0.5, pr: 1, borderRadius: 2, color: '#fff' }}>
             <Avatar sx={{ width: 32, height: 32, bgcolor: 'rgba(255,255,255,0.18)', fontSize: '0.85rem' }}>{initials}</Avatar>
             <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, display: { xs: 'none', md: 'block' } }}>{user?.name}</Typography>

@@ -7,12 +7,16 @@ import Grid from '@mui/material/Grid'
 import EditIcon from '@mui/icons-material/Edit'
 import WhatsAppIcon from '@mui/icons-material/WhatsApp'
 import EventIcon from '@mui/icons-material/Event'
+import EditNoteIcon from '@mui/icons-material/EditNote'
 import { useNavigate, useParams } from 'react-router-dom'
 import api, { errMsg } from '../api/client'
 import { useFeedback } from '../components/Feedback'
 import StatusChip from '../components/StatusChip'
 import WhatsAppDialog from '../components/WhatsAppDialog'
-import { STATUSES, type Customer, type CustomerStatus } from '../types'
+import CompleteFollowupDialog, { type CompleteTarget } from '../components/CompleteFollowupDialog'
+import { followupLabel } from '../followup'
+import ActivityFeed from '../components/ActivityFeed'
+import { STATUSES, statusLabel, type Customer } from '../types'
 
 const tomorrow = () => {
   const d = new Date()
@@ -39,9 +43,12 @@ export default function LeadDetail() {
   const [fuOpen, setFuOpen] = useState(false)
   const [fuDate, setFuDate] = useState(tomorrow())
   const [fuRemarks, setFuRemarks] = useState('')
-  const [fuStatus, setFuStatus] = useState<CustomerStatus>('follow-up')
+  const [upOpen, setUpOpen] = useState(false)
+  const [upNote, setUpNote] = useState('')
+  const [upStatus, setUpStatus] = useState('')
 
   const [waOpen, setWaOpen] = useState(false)
+  const [completeT, setCompleteT] = useState<CompleteTarget | null>(null)
 
   const load = useCallback(() => {
     api.get(`/lead/customers/${id}`)
@@ -57,35 +64,50 @@ export default function LeadDetail() {
 
   if (loading || !c) return <CircularProgress />
 
+  // Schedule (or reschedule) the NEXT follow-up: a future date + an optional plan.
   const saveFollowup = async () => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(fuDate)) return notify('Choose a valid follow-up date', 'error')
     try {
       await api.post(`/lead/customers/${c.id}/follow-up`, {
         followup_date: fuDate,
-        remarks: fuRemarks || 'Scheduled next follow-up',
-        status: fuStatus,
+        remarks: fuRemarks.trim() || undefined,
       })
       setFuOpen(false)
-      notify('Follow-up updated')
+      notify('Follow-up scheduled')
       load()
-    } catch (e) { notify(errMsg(e, 'Failed to update follow-up'), 'error') }
+    } catch (e) { notify(errMsg(e, 'Failed to schedule follow-up'), 'error') }
   }
 
-  const timeline = [...(c.timelines ?? [])].sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at))
+  // Log what happened (call / visit): a note + optional status change. No date involved.
+  const saveUpdate = async () => {
+    if (!upNote.trim()) return notify('Write what happened', 'error')
+    try {
+      await api.post(`/lead/customers/${c.id}/activity`, { note: upNote.trim(), status: upStatus || undefined })
+      setUpOpen(false)
+      notify('Update added')
+      load()
+    } catch (e) { notify(errMsg(e, 'Failed to add update'), 'error') }
+  }
+
+  const pendingFollowup = c.followups?.find((f) => f.status === 'pending')
+  const logs = c.timelines ?? []
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: { lg: 'calc(100vh - 112px)' }, minHeight: { lg: 520 } }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap', flexShrink: 0 }}>
         <Typography variant="h4" sx={{ fontWeight: 700 }}>{c.name}</Typography>
         <StatusChip status={c.status} />
         <Box sx={{ flex: 1 }} />
         <Button startIcon={<WhatsAppIcon />} color="success" variant="outlined" onClick={() => setWaOpen(true)}>WhatsApp</Button>
-        <Button startIcon={<EventIcon />} variant="outlined" onClick={() => { setFuDate(tomorrow()); setFuRemarks(''); setFuStatus('follow-up'); setFuOpen(true) }}>Follow-up</Button>
+        <Button startIcon={<EditNoteIcon />} variant="outlined" onClick={() => { setUpNote(''); setUpStatus(''); setUpOpen(true) }}>Log update</Button>
+        <Button startIcon={<EventIcon />} variant="outlined" onClick={() => { setFuDate(c.followup_date ? String(c.followup_date).slice(0, 10) : tomorrow()); setFuRemarks(''); setFuOpen(true) }}>
+          {pendingFollowup ? 'Reschedule follow-up' : 'Schedule follow-up'}
+        </Button>
         <Button startIcon={<EditIcon />} variant="contained" onClick={() => nav(`/leads/${c.id}/edit`)}>Edit</Button>
       </Box>
 
-      <Grid container spacing={2}>
-        <Grid size={{ xs: 12, lg: 7 }}>
+      <Grid container spacing={2} sx={{ flex: 1, minHeight: 0 }}>
+        <Grid size={{ xs: 12, lg: 7 }} sx={{ minHeight: 0, overflowY: { lg: 'auto' }, pb: { lg: 0.5 } }}>
           <Card sx={{ p: 3 }}>
             <Grid container spacing={2}>
               <Info label="Mobile" value={c.mobile} />
@@ -101,42 +123,95 @@ export default function LeadDetail() {
               <Info label="Notes" value={c.notes} />
             </Grid>
           </Card>
-        </Grid>
-        <Grid size={{ xs: 12, lg: 5 }}>
-          <Card sx={{ p: 3, display: 'flex', flexDirection: 'column', maxHeight: { xs: 420, lg: 560 } }}>
-            <Typography variant="h6" sx={{ fontWeight: 600 }} gutterBottom>Timeline</Typography>
-            <Box sx={{ overflowY: 'auto', pr: 1, mt: 1, flex: 1, minHeight: 0 }}>
-            {!timeline.length && <Typography color="text.secondary">No activity yet.</Typography>}
-            {timeline.map((t) => (
-              <Box key={t.id} sx={{ borderLeft: '3px solid #2F4A6D', pl: 2, mb: 2 }}>
-                <Typography sx={{ fontWeight: 600 }}>{t.action}</Typography>
-                {t.remarks && <Typography variant="body2">{t.remarks}</Typography>}
-                <Typography variant="caption" color="text.secondary">
-                  {new Date(t.created_at).toLocaleString()}{t.creator ? ` · ${t.creator.name}` : ''}
-                </Typography>
-              </Box>
-            ))}
-            </Box>
+
+          {/* Follow-up history: scheduled vs actually done */}
+          <Card sx={{ p: 3, mt: 2 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600 }} gutterBottom>Follow-ups</Typography>
+            {!c.followups && c.followup_date && (
+              <Typography color="text.secondary">
+                Next follow-up on <b>{String(c.followup_date).slice(0, 10)}</b>. Detailed follow-up history is not available from this server yet.
+              </Typography>
+            )}
+            {c.followups && !c.followups.length && <Typography color="text.secondary">No follow-ups scheduled yet.</Typography>}
+            {!c.followups && !c.followup_date && <Typography color="text.secondary">No follow-ups scheduled yet.</Typography>}
+            {c.followups?.map((f) => {
+              const label = followupLabel(f)
+              return (
+                <Box key={f.id} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, py: 1.25, borderTop: '1px solid #F1F5F9' }}>
+                  <Box sx={{ width: 6, alignSelf: 'stretch', borderRadius: 3, bgcolor: label.color, flexShrink: 0 }} />
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                      <Typography sx={{ fontWeight: 600 }}>{f.scheduled_for}</Typography>
+                      <Typography variant="caption" sx={{ color: label.color, fontWeight: 700 }}>{label.text}</Typography>
+                    </Box>
+                    {f.remarks && <Typography variant="body2" color="text.secondary">Plan: {f.remarks}</Typography>}
+                    {f.outcome && <Typography variant="body2">Outcome: {f.outcome}</Typography>}
+                    {f.resolved_at && (
+                      <Typography variant="caption" color="text.secondary">
+                        {f.status === 'done' ? 'Completed' : f.status === 'rescheduled' ? 'Rescheduled' : 'Closed'} {new Date(f.resolved_at).toLocaleString()}
+                        {f.resolver ? ` · ${f.resolver.name}` : ''}
+                      </Typography>
+                    )}
+                  </Box>
+                  {f.status === 'pending' && (
+                    <Button size="small" variant="outlined" color="success"
+                      onClick={() => setCompleteT({ id: f.id, scheduled_for: f.scheduled_for, customerName: c.name })}>
+                      Mark done
+                    </Button>
+                  )}
+                </Box>
+              )
+            })}
           </Card>
+        </Grid>
+        <Grid size={{ xs: 12, lg: 5 }} sx={{ minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+          <ActivityFeed timelines={logs} />
         </Grid>
       </Grid>
 
+      {/* Schedule follow-up: WHEN to contact the customer next */}
       <Dialog open={fuOpen} onClose={() => setFuOpen(false)} fullWidth maxWidth="xs">
-        <DialogTitle>Schedule follow-up</DialogTitle>
-        <DialogContent sx={{ display: 'grid', gap: 2, pt: '8px !important' }}>
-          <TextField type="date" label="Next follow-up date" value={fuDate} onChange={(e) => setFuDate(e.target.value)}
+        <DialogTitle sx={{ pb: 0.5 }}>
+          {pendingFollowup ? 'Reschedule follow-up' : 'Schedule follow-up'}
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 400 }}>
+            {pendingFollowup
+              ? `Currently scheduled for ${pendingFollowup.scheduled_for}. Saving moves it to the new date.`
+              : 'Pick the date you should contact this customer next. You will be reminded.'}
+          </Typography>
+        </DialogTitle>
+        <DialogContent sx={{ display: 'grid', gap: 2, pt: '16px !important' }}>
+          <TextField type="date" label="Follow-up date" value={fuDate} onChange={(e) => setFuDate(e.target.value)}
             slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: new Date().toISOString().slice(0, 10) } }} />
-          <TextField select label="Status" value={fuStatus} onChange={(e) => setFuStatus(e.target.value as CustomerStatus)}>
-            {STATUSES.map((s) => <MenuItem key={s} value={s} sx={{ textTransform: 'capitalize' }}>{s}</MenuItem>)}
-          </TextField>
-          <TextField label="Remarks" multiline minRows={3} value={fuRemarks} onChange={(e) => setFuRemarks(e.target.value)} placeholder="Details of today's conversation..." />
+          <TextField label="Plan / reminder note (optional)" multiline minRows={2} value={fuRemarks} onChange={(e) => setFuRemarks(e.target.value)} placeholder="e.g. Share the quote and ask for a decision" />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setFuOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={saveFollowup}>Save</Button>
+          <Button variant="contained" onClick={saveFollowup}>Schedule</Button>
         </DialogActions>
       </Dialog>
 
+      {/* Log update: WHAT happened on a call / visit */}
+      <Dialog open={upOpen} onClose={() => setUpOpen(false)} fullWidth maxWidth="xs">
+        <DialogTitle sx={{ pb: 0.5 }}>
+          Log update
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 400 }}>
+            Record what happened. This does not change the follow-up date.
+          </Typography>
+        </DialogTitle>
+        <DialogContent sx={{ display: 'grid', gap: 2, pt: '16px !important' }}>
+          <TextField label="What happened? *" multiline minRows={3} autoFocus value={upNote} onChange={(e) => setUpNote(e.target.value)} placeholder="e.g. Called, customer asked for a discount" />
+          <TextField select label="Update lead status (optional)" value={upStatus} onChange={(e) => setUpStatus(e.target.value)}>
+            <MenuItem value="">Keep current status ({statusLabel(c.status)})</MenuItem>
+            {STATUSES.filter((st) => st !== c.status).map((st) => <MenuItem key={st} value={st}>{statusLabel(st)}</MenuItem>)}
+          </TextField>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setUpOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={saveUpdate}>Save update</Button>
+        </DialogActions>
+      </Dialog>
+
+      <CompleteFollowupDialog target={completeT} onClose={() => setCompleteT(null)} onDone={load} />
       <WhatsAppDialog lead={waOpen ? c : null} onClose={() => setWaOpen(false)} onSent={load} />
     </Box>
   )
