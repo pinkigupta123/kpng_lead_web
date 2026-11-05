@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Alert, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, TextField } from '@mui/material'
+import { Alert, Button, Checkbox, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, ListItemText, MenuItem, TextField } from '@mui/material'
 import Grid from '@mui/material/Grid'
 import { Controller, useForm } from 'react-hook-form'
 import api, { errMsg } from '../api/client'
 import { useFeedback } from '../components/Feedback'
+import { useLeadOptions } from '../hooks/useLeadOptions'
 
 interface F {
   name: string
@@ -11,6 +12,7 @@ interface F {
   email: string
   branch: string
   designation: string
+  permissions: string[]
   password: string
 }
 
@@ -21,7 +23,7 @@ export interface NewCreds {
   password: string
 }
 
-const EMPTY: F = { name: '', mobile: '', email: '', branch: '', designation: '', password: '' }
+const EMPTY: F = { name: '', mobile: '', email: '', branch: '', designation: '', permissions: [], password: '' }
 
 interface Props {
   open: boolean
@@ -43,6 +45,8 @@ export default function StaffForm({ open, executiveId, onClose, onSaved }: Props
   const [inactive, setInactive] = useState<Set<string>>(new Set())
   const [branchesLoading, setBranchesLoading] = useState(true)
   const currentBranch = watch('branch')
+  const currentDesignation = watch('designation')
+  const { options: leadOptions, permissions: permissionCatalog } = useLeadOptions()
 
   // Branch list comes from the branches table
   useEffect(() => {
@@ -73,7 +77,7 @@ export default function StaffForm({ open, executiveId, onClose, onSaved }: Props
     api.get(`/lead/executives/${executiveId}`)
       .then((r) => {
         const d = r.data?.data || r.data
-        reset({ name: d.name, mobile: d.mobile, email: d.email || '', branch: d.branch, designation: d.designation || '', password: '' })
+        reset({ name: d.name, mobile: d.mobile, email: d.email || '', branch: d.branch, designation: d.designation || '', permissions: d.permissions || [], password: '' })
       })
       .catch(() => { notify('Failed to load executive', 'error'); onClose() })
       .finally(() => setFetching(false))
@@ -134,7 +138,20 @@ export default function StaffForm({ open, executiveId, onClose, onSaved }: Props
                   />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField fullWidth label="Designation" autoComplete="off" {...register('designation')} />
+                  <Controller
+                    name="designation"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField select fullWidth label="Designation" {...field}>
+                        <MenuItem value="">—</MenuItem>
+                        {/* keep a value saved earlier selectable even if the admin removed it */}
+                        {currentDesignation && !leadOptions.designation.some((o) => o.label === currentDesignation) && (
+                          <MenuItem value={currentDesignation}>{currentDesignation}</MenuItem>
+                        )}
+                        {leadOptions.designation.map((o) => <MenuItem key={o.id} value={o.label}>{o.label}</MenuItem>)}
+                      </TextField>
+                    )}
+                  />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
@@ -144,6 +161,30 @@ export default function StaffForm({ open, executiveId, onClose, onSaved }: Props
                     label={edit ? 'New password (optional)' : 'Password (optional)'}
                     helperText={edit ? undefined : 'Auto-generated if left empty'}
                     {...register('password')}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12 }}>
+                  <Controller
+                    name="permissions"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        select fullWidth label="Permissions" {...field}
+                        slotProps={{
+                          select: {
+                            multiple: true,
+                            renderValue: (v) => permissionCatalog.filter((p) => (v as string[]).includes(p.key)).map((p) => p.label).join(', '),
+                          },
+                        }}
+                      >
+                        {permissionCatalog.map((p) => (
+                          <MenuItem key={p.key} value={p.key}>
+                            <Checkbox checked={field.value.includes(p.key)} />
+                            <ListItemText primary={p.label} />
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                    )}
                   />
                 </Grid>
               </Grid>

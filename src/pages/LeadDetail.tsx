@@ -87,6 +87,16 @@ export default function LeadDetail() {
     } catch (e) { notify(errMsg(e, 'Failed to add update'), 'error') }
   }
 
+  // Quick status change straight from the header (logged in the activity timeline by the backend)
+  const changeStatus = async (next: string) => {
+    if (next === c.status) return
+    try {
+      await api.put(`/lead/customers/${c.id}`, { name: c.name, status: next })
+      notify(`Status changed to ${statusLabel(next)}`)
+      load()
+    } catch (e) { notify(errMsg(e, 'Failed to change status'), 'error') }
+  }
+
   const pendingFollowup = c.followups?.find((f) => f.status === 'pending')
   const logs = c.timelines ?? []
 
@@ -96,6 +106,9 @@ export default function LeadDetail() {
         <Typography variant="h4" sx={{ fontWeight: 700 }}>{c.name}</Typography>
         <StatusChip status={c.status} />
         <Box sx={{ flex: 1 }} />
+        <TextField select size="small" label="Change status" value={c.status} onChange={(e) => changeStatus(e.target.value)} sx={{ width: 160 }}>
+          {STATUSES.map((s) => <MenuItem key={s} value={s}>{statusLabel(s)}</MenuItem>)}
+        </TextField>
         <Button startIcon={<WhatsAppIcon />} color="success" variant="outlined" onClick={() => setWaOpen(true)}>WhatsApp</Button>
         <Button startIcon={<EditNoteIcon />} variant="outlined" onClick={() => { setUpNote(''); setUpStatus(''); setUpOpen(true) }}>Log update</Button>
         <Button startIcon={<EventIcon />} variant="outlined" onClick={() => { setFuDate(c.followup_date ? String(c.followup_date).slice(0, 10) : tomorrow()); setFuRemarks(''); setFuOpen(true) }}>

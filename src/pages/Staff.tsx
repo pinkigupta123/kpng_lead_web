@@ -4,6 +4,7 @@ import {
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Tooltip, Typography,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
+import DownloadIcon from '@mui/icons-material/Download'
 import SearchIcon from '@mui/icons-material/Search'
 import EditIcon from '@mui/icons-material/Edit'
 import LockResetIcon from '@mui/icons-material/LockReset'
@@ -17,6 +18,7 @@ import { useFeedback } from '../components/Feedback'
 import StatusChip from '../components/StatusChip'
 import PageHeader from '../components/PageHeader'
 import StaffForm from './StaffForm'
+import { useAuth } from '../store/auth'
 import type { User } from '../types'
 
 export interface Creds { name?: string; employeeId: string; username: string; password: string }
@@ -109,6 +111,25 @@ export default function Staff() {
   const shareCreds = (x: User) =>
     setCreds({ name: x.name, employeeId: x.employee_id, username: x.mobile, password: x.temp_password || '' })
 
+  // Super admin only (this page is admin-only and so is the staff API). Temporary passwords are NOT exported.
+  const isAdmin = useAuth((st) => st.user?.role === 'super_admin')
+  const exportCsv = () => {
+    if (!isAdmin) return
+    const esc = (v: unknown) => {
+      const t = v == null || v === '' ? '' : String(v)
+      return /[",\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t
+    }
+    const head = ['Employee ID', 'Name', 'Mobile', 'Email', 'Branch', 'Designation', 'Permissions', 'Status']
+    const lines = visible.map((x) => [x.employee_id, x.name, x.mobile, x.email, x.branch, x.designation, (x.permissions || []).join('; '), x.status].map(esc).join(','))
+    const blob = new Blob(['\uFEFF' + [head.join(','), ...lines].join('\r\n')], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `staff_${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const resetPwd = async (x: User) => {
     if (!(await confirm('Reset password', `Reset password for ${x.name}?`, 'Reset'))) return
     try {
@@ -131,6 +152,7 @@ export default function Staff() {
             </TextField>
             <TextField size="small" placeholder="Search staff…" value={search} onChange={(e) => setSearch(e.target.value)} sx={{ minWidth: 260 }}
               slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> } }} />
+            {isAdmin && <Button variant="outlined" startIcon={<DownloadIcon />} onClick={exportCsv} disabled={!visible.length}>Export</Button>}
             <Button variant="contained" startIcon={<AddIcon />} onClick={() => setForm({ open: true, id: null })}>Add executive</Button>
           </>
         }

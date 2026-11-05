@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Alert, Box, Button, Card, CircularProgress, TextField, Typography } from '@mui/material'
+import { Alert, Box, Button, Card, CircularProgress, MenuItem, TextField, Typography } from '@mui/material'
 import Grid from '@mui/material/Grid'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import { useNavigate, useParams } from 'react-router-dom'
 import api, { errMsg } from '../api/client'
 import { useFeedback } from '../components/Feedback'
 import { useAuth } from '../store/auth'
+import { useLeadOptions } from '../hooks/useLeadOptions'
 import { localDate } from '../dates'
 import { STATUSES, statusLabel, type CustomerStatus } from '../types'
 
@@ -15,6 +16,7 @@ interface F {
   email: string
   city: string
   company: string
+  lead_source: string
   interested_product: string
   device_brand: string
   device_model: string
@@ -25,7 +27,7 @@ interface F {
 }
 
 const EMPTY: F = {
-  name: '', mobile: '', email: '', city: '', company: '', interested_product: '',
+  name: '', mobile: '', email: '', city: '', company: '', lead_source: '', interested_product: '',
   device_brand: '', device_model: '', customer_query: '', status: 'new', followup_date: '', notes: '',
 }
 
@@ -45,7 +47,9 @@ export default function LeadForm({ embedded = false, leadId, onDone, onCancel }:
   const nav = useNavigate()
   const { notify } = useFeedback()
   const me = useAuth((x) => x.user)
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<F>({ defaultValues: EMPTY })
+  const { register, handleSubmit, reset, control, watch, formState: { errors } } = useForm<F>({ defaultValues: EMPTY })
+  const { options: leadOptions } = useLeadOptions()
+  const currentSource = watch('lead_source')
   const [fetching, setFetching] = useState(edit)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -55,7 +59,7 @@ export default function LeadForm({ embedded = false, leadId, onDone, onCancel }:
     api.get(`/lead/customers/${id}`).then((r) => {
       const d = r.data?.data || r.data
       reset({
-        name: d.name, mobile: d.mobile, email: d.email || '', city: d.city || '', company: d.company || '',
+        name: d.name, mobile: d.mobile, email: d.email || '', city: d.city || '', company: d.company || '', lead_source: d.lead_source || '',
         interested_product: d.interested_product || '', device_brand: d.device_brand || '',
         device_model: d.device_model || '', customer_query: d.customer_query || '', status: d.status,
         followup_date: d.followup_date ? String(d.followup_date).slice(0, 10) : '', notes: d.notes || '',
@@ -137,6 +141,22 @@ export default function LeadForm({ embedded = false, leadId, onDone, onCancel }:
           {field('email', 'Email', { type: 'email', lock: true })}
           {field('city', 'City', { lock: true })}
           {field('company', 'Company', { lock: true })}
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Controller
+              name="lead_source"
+              control={control}
+              render={({ field: f }) => (
+                <TextField select fullWidth label="Lead came from" {...f}>
+                  <MenuItem value="">—</MenuItem>
+                  {/* keep a value saved earlier selectable even if the admin removed it */}
+                  {currentSource && !leadOptions.lead_source.some((o) => o.label === currentSource) && (
+                    <MenuItem value={currentSource}>{currentSource}</MenuItem>
+                  )}
+                  {leadOptions.lead_source.map((o) => <MenuItem key={o.id} value={o.label}>{o.label}</MenuItem>)}
+                </TextField>
+              )}
+            />
+          </Grid>
           {field('interested_product', 'Interested product', { lock: true })}
           {field('device_brand', 'Device brand', { lock: true })}
           {field('device_model', 'Device model', { lock: true })}

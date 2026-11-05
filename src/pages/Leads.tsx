@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  Box, Button, Drawer, IconButton, InputAdornment, MenuItem, Paper, Table, TableBody, TableCell,
+  Box, Button, CircularProgress, Drawer, IconButton, InputAdornment, MenuItem, Paper, Table, TableBody, TableCell,
   TableContainer, TableHead, TablePagination, TableRow, TextField, Tooltip, Typography,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
+import GroupAddIcon from '@mui/icons-material/GroupAdd'
+import DownloadIcon from '@mui/icons-material/Download'
 import CloseIcon from '@mui/icons-material/Close'
 import SearchIcon from '@mui/icons-material/Search'
 import ShareIcon from '@mui/icons-material/Share'
@@ -18,10 +20,15 @@ import PageHeader from '../components/PageHeader'
 import LeadForm from './LeadForm'
 import ShareLeadDialog, { type ShareLead } from '../components/ShareLeadDialog'
 import WhatsAppDialog from '../components/WhatsAppDialog'
+import BulkAddDialog from '../components/BulkAddDialog'
 
 export default function Leads() {
   const nav = useNavigate()
   const admin = useAuth((s) => s.user?.role === 'super_admin')
+  // executives need the bulk_add_leads permission granted by an admin
+  const canBulk = useAuth((s) => s.user?.role === 'sales_executive' && !!s.user?.permissions?.includes('bulk_add_leads'))
+  const [bulkOpen, setBulkOpen] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [rows, setRows] = useState<Customer[]>([])
   const [total, setTotal] = useState(0)
   const [perPage, setPerPage] = useState(15)
@@ -94,6 +101,33 @@ export default function Leads() {
     return () => { cancelled = true }
   }, [page, debounced, status, sort, execId, branch, reload])
 
+  // Super admin only (the backend enforces it too). Exports every lead matching the current filters.
+  const exportCsv = async () => {
+    setExporting(true)
+    try {
+      const r = await api.get('/lead/customers/export', {
+        responseType: 'blob',
+        params: {
+          search: debounced || undefined,
+          status: status !== 'all' ? status : undefined,
+          sort,
+          executive_id: execId || undefined,
+          branch: branch || undefined,
+        },
+      })
+      const url = URL.createObjectURL(r.data)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `lead_customers_${new Date().toISOString().slice(0, 10)}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      window.alert('Failed to export leads.')
+    } finally {
+      setExporting(false)
+    }
+  }
+
   const reset = <T,>(set: (v: T) => void) => (v: T) => { setPage(0); set(v) }
 
   const onCreated = (id?: number, opts?: { existing?: boolean; lead?: ShareLead }) => {
@@ -108,15 +142,16 @@ export default function Leads() {
 
   return (
     <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-      <PageHeader
-        title="Leads"
-        action={
-          <>
+      <PageHeader title="Leads" />
+
+      {/* toolbar: search on the left, filters + actions on the right */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1.5, mb: 3 }}>
         <TextField
           size="small" placeholder="Search leads…" value={search}
-          onChange={(e) => reset(setSearch)(e.target.value)} sx={{ width: 190 }}
+          onChange={(e) => reset(setSearch)(e.target.value)} sx={{ width: { xs: '100%', sm: 280 } }}
           slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> } }}
         />
+        <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end' }}>
         <TextField select size="small" label="Status" value={status} onChange={(e) => reset(setStatus)(e.target.value)} sx={{ width: 150 }}>
           <MenuItem value="all">All</MenuItem>
           {STATUSES.map((s) => <MenuItem key={s} value={s}>{statusLabel(s)}</MenuItem>)}
@@ -139,10 +174,11 @@ export default function Leads() {
           <MenuItem value="desc">Latest first</MenuItem>
           <MenuItem value="asc">Oldest first</MenuItem>
         </TextField>
+                  {admin && <Button variant="outlined" startIcon={exporting ? <CircularProgress size={16} /> : <DownloadIcon />} onClick={exportCsv} disabled={exporting} sx={{ minWidth: 112, whiteSpace: 'nowrap' }}>Export</Button>}
+                  {canBulk && <Button variant="outlined" startIcon={<GroupAddIcon />} onClick={() => setBulkOpen(true)}>Add multiple</Button>}
                   <Button variant="contained" startIcon={<AddIcon />} onClick={() => { setEditId(null); setPanel(true) }}>Add lead</Button>
-          </>
-        }
-      />
+        </Box>
+      </Box>
 
       <Paper sx={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 380, '& .MuiTableBody-root .MuiTableRow-root:last-child .MuiTableCell-root': { borderBottom: 0 } }}>
         <TableContainer sx={{ flex: 1, minHeight: 0, opacity: loading ? 0.5 : 1, transition: 'opacity .15s' }}>
@@ -184,6 +220,7 @@ export default function Leads() {
         </Box>
       </Paper>
 
+      <BulkAddDialog open={bulkOpen} onClose={() => setBulkOpen(false)} onSaved={() => { setPage(0); setReload((n) => n + 1) }} />
       <WhatsAppDialog lead={wa} onClose={() => setWa(null)} onSent={() => setReload((n) => n + 1)} />
       <ShareLeadDialog lead={share?.lead ?? null} created={share?.created} onClose={() => setShare(null)} />
 

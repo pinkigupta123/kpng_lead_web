@@ -6,6 +6,7 @@ import {
 import DashboardIcon from '@mui/icons-material/Dashboard'
 import GroupIcon from '@mui/icons-material/People'
 import BadgeIcon from '@mui/icons-material/Badge'
+import TuneIcon from '@mui/icons-material/Tune'
 import PersonIcon from '@mui/icons-material/Person'
 import MenuIcon from '@mui/icons-material/Menu'
 import LogoutIcon from '@mui/icons-material/Logout'
@@ -30,7 +31,10 @@ export default function Layout() {
   const items = [
     { to: '/', label: 'Dashboard', icon: <DashboardIcon /> },
     { to: '/leads', label: 'Leads', icon: <GroupIcon /> },
-    ...(user?.role === 'super_admin' ? [{ to: '/staff', label: 'Staff', icon: <BadgeIcon /> }] : []),
+    ...(user?.role === 'super_admin' ? [
+      { to: '/staff', label: 'Staff', icon: <BadgeIcon /> },
+      { to: '/options', label: 'Dropdowns', icon: <TuneIcon /> },
+    ] : []),
     { to: '/profile', label: 'Profile', icon: <PersonIcon /> },
   ]
 

@@ -8,6 +8,7 @@ import Leads from './pages/Leads'
 import LeadDetail from './pages/LeadDetail'
 import LeadForm from './pages/LeadForm'
 import Staff from './pages/Staff'
+import ManageOptions from './pages/ManageOptions'
 import Profile from './pages/Profile'
 
 export default function App() {
@@ -41,6 +42,7 @@ export default function App() {
         <Route path="leads/:id" element={<LeadDetail />} />
         <Route path="leads/:id/edit" element={<LeadForm />} />
         {admin && <Route path="staff" element={<Staff />} />}
+        {admin && <Route path="options" element={<ManageOptions />} />}
         <Route path="profile" element={<Profile />} />
         <Route path="change-password" element={<ChangePassword />} />
         <Route path="*" element={<Navigate to="/" replace />} />
