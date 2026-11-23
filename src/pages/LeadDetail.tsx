@@ -5,6 +5,7 @@ import {
 } from '@mui/material'
 import Grid from '@mui/material/Grid'
 import EditIcon from '@mui/icons-material/Edit'
+import PrintIcon from '@mui/icons-material/Print'
 import WhatsAppIcon from '@mui/icons-material/WhatsApp'
 import EventIcon from '@mui/icons-material/Event'
 import EditNoteIcon from '@mui/icons-material/EditNote'
@@ -17,6 +18,10 @@ import CompleteFollowupDialog, { type CompleteTarget } from '../components/Compl
 import { followupLabel } from '../followup'
 import { localDate } from '../dates'
 import ActivityFeed from '../components/ActivityFeed'
+import { useCloseLead, useConfirmSale } from '../hooks/useConfirmSale'
+import { useSaleFlow } from '../components/SaleFlow'
+import { METHOD_LABEL, money, type LeadOrder } from '../orderHtml'
+import { printOrder } from '../orderPrint'
 import { STATUSES, statusLabel, type Customer } from '../types'
 
 const tomorrow = () => localDate(1)
@@ -34,6 +39,10 @@ export default function LeadDetail() {
   const { id } = useParams()
   const nav = useNavigate()
   const { notify } = useFeedback()
+  const confirmSale = useConfirmSale()
+  const closeLead = useCloseLead()
+  const { openOrder } = useSaleFlow()
+  const [order, setOrder] = useState<LeadOrder | null>(null)
   const [c, setC] = useState<Customer | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -49,7 +58,13 @@ export default function LeadDetail() {
 
   const load = useCallback(() => {
     api.get(`/lead/customers/${id}`)
-      .then((r) => setC(r.data?.data || r.data))
+      .then((r) => {
+        const lead = r.data?.data || r.data
+        setC(lead)
+        // a confirmed sale has an order confirmation form behind it
+        if (lead?.status === 'purchased') api.get(`/lead/customers/${id}/order`).then((o) => setOrder(o.data?.order ?? null)).catch(() => {})
+        else setOrder(null)
+      })
       .catch((e) => {
         notify(e?.response?.status === 403 ? "You don't have access to this lead." : 'Failed to load lead', 'error')
         nav('/leads')
@@ -90,6 +105,8 @@ export default function LeadDetail() {
   // Quick status change straight from the header (logged in the activity timeline by the backend)
   const changeStatus = async (next: string) => {
     if (next === c.status) return
+    if (next === 'purchased') { confirmSale(c.id, undefined, load); return } // a sale is confirmed through the order form (side panel)
+    if (next === 'closed') { closeLead(c.id, load); return } // closing needs a reason
     try {
       await api.put(`/lead/customers/${c.id}`, { name: c.name, status: next })
       notify(`Status changed to ${statusLabel(next)}`)
@@ -101,7 +118,7 @@ export default function LeadDetail() {
   const logs = c.timelines ?? []
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap', flexShrink: 0 }}>
         <Typography variant="h4" sx={{ fontWeight: 700 }}>{c.name}</Typography>
         <StatusChip status={c.status} />
@@ -117,8 +134,31 @@ export default function LeadDetail() {
         <Button startIcon={<EditIcon />} variant="contained" onClick={() => nav(`/leads/${c.id}/edit`)}>Edit</Button>
       </Box>
 
-      <Grid container spacing={2} sx={{ flexWrap: { lg: 'nowrap' } }}>
+      <Grid container spacing={2} sx={{ flexWrap: { lg: 'nowrap' }, flex: 1, minHeight: 0 }}>
         <Grid size={{ xs: 12, lg: 7 }} sx={{ minHeight: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {c.status === 'purchased' && (
+            <Card sx={{ p: 2.5, flexShrink: 0 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1.5 }}>
+                <Box>
+                  <Typography variant="overline" color="primary" sx={{ fontWeight: 700 }}>Order confirmation</Typography>
+                  {order ? (
+                    <>
+                      <Typography sx={{ fontWeight: 800 }}>{order.order_no} · {money(order.total)}</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {order.payments.map((p) => `${METHOD_LABEL[p.method]}${p.provider ? ` (${p.provider})` : ''}`).join(', ')}
+                      </Typography>
+                    </>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">This sale is confirmed but has no order confirmation form yet.</Typography>
+                  )}
+                </Box>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  {order && <Button size="small" variant="outlined" startIcon={<PrintIcon />} onClick={() => { if (!printOrder(order)) notify('Allow pop-ups to print the order', 'error') }}>Print / PDF</Button>}
+                  <Button size="small" variant="contained" onClick={() => openOrder(c.id, { onDone: load })}>{order ? 'View / edit' : 'Fill order form'}</Button>
+                </Box>
+              </Box>
+            </Card>
+          )}
           <Card sx={{ p: 3.5, flexShrink: 0 }}>
             <Grid container columnSpacing={3} rowSpacing={3}>
               <Info label="Mobile" value={c.mobile} />
@@ -136,7 +176,7 @@ export default function LeadDetail() {
           </Card>
 
           {/* Follow-up history: scheduled vs actually done */}
-          <Card sx={{ p: 2.5, flexShrink: 0 }}>
+          <Card sx={{ p: 2.5, flex: { lg: '1 1 auto' }, minHeight: 0, overflow: 'auto' }}>
             <Typography variant="h6" sx={{ fontWeight: 600 }} gutterBottom>Follow-ups</Typography>
             <Box>
             {!c.followups && c.followup_date && (
@@ -152,7 +192,7 @@ export default function LeadDetail() {
               const label = followupLabel(f)
               return (
                 <Box key={f.id} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, py: 1.25, borderTop: '1px solid #F1F5F9' }}>
-                  <Box sx={{ width: 6, alignSelf: 'stretch', borderRadius: 3, bgcolor: label.color, flexShrink: 0 }} />
+                  <Box sx={{ width: 6, alignSelf: 'stretch', borderRadius: 1.5, bgcolor: label.color, flexShrink: 0 }} />
                   <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                       <Typography sx={{ fontWeight: 600 }}>{f.scheduled_for}</Typography>
@@ -169,7 +209,7 @@ export default function LeadDetail() {
                   </Box>
                   {f.status === 'pending' && (
                     <Button size="small" variant="outlined" color="success"
-                      onClick={() => setCompleteT({ id: f.id, scheduled_for: f.scheduled_for, customerName: c.name, status: c.status })}>
+                      onClick={() => setCompleteT({ id: f.id, scheduled_for: f.scheduled_for, customerName: c.name, status: c.status, customerId: c.id })}>
                       Mark done
                     </Button>
                   )}
@@ -215,7 +255,10 @@ export default function LeadDetail() {
         </DialogTitle>
         <DialogContent sx={{ display: 'grid', gap: 2, pt: '16px !important' }}>
           <TextField label="What happened? *" multiline minRows={3} autoFocus value={upNote} onChange={(e) => setUpNote(e.target.value)} placeholder="e.g. Called, customer asked for a discount" />
-          <TextField select label="Update lead status (optional)" value={upStatus} onChange={(e) => setUpStatus(e.target.value)}>
+          <TextField select label="Update lead status (optional)" value={upStatus}
+            onChange={(e) => (e.target.value === 'purchased' ? confirmSale(c.id, () => setUpOpen(false), load)
+              : e.target.value === 'closed' ? closeLead(c.id, load, () => setUpOpen(false))
+              : setUpStatus(e.target.value))}>
             <MenuItem value="">Keep current status ({statusLabel(c.status)})</MenuItem>
             {STATUSES.filter((st) => st !== c.status).map((st) => <MenuItem key={st} value={st}>{statusLabel(st)}</MenuItem>)}
           </TextField>

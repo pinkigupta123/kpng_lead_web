@@ -18,8 +18,8 @@ export interface User {
 }
 
 export const STATUSES = ['new', 'contacted', 'follow-up', 'interested', 'purchased', 'closed'] as const
-/** Display label for a status value: "follow-up" -> "Follow-up". */
-export const statusLabel = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s)
+/** Display label for a status value: "follow-up" -> "Follow-up". The purchased status is shown as "Confirmed" (a confirmed sale). */
+export const statusLabel = (s: string) => (s === 'purchased' ? 'Confirmed' : s ? s.charAt(0).toUpperCase() + s.slice(1) : s)
 
 export type CustomerStatus = (typeof STATUSES)[number]
 
@@ -92,7 +92,7 @@ export interface DashboardStats {
   upcoming_followups?: Customer[]
 }
 
-export type OptionType = 'lead_source' | 'designation'
+export type OptionType = 'lead_source' | 'designation' | 'card_provider' | 'upi_provider' | 'finance_provider' | 'order_offer'
 
 export interface LeadOption {
   id: number

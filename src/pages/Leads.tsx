@@ -12,6 +12,7 @@ import ShareIcon from '@mui/icons-material/Share'
 import EditIcon from '@mui/icons-material/Edit'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import { useNavigate } from 'react-router-dom'
+import { useFeedback } from '../components/Feedback'
 import api from '../api/client'
 import { useAuth } from '../store/auth'
 import { STATUSES, statusLabel, type Customer, type User } from '../types'
@@ -24,6 +25,7 @@ import BulkAddDialog from '../components/BulkAddDialog'
 
 export default function Leads() {
   const nav = useNavigate()
+  const { notify } = useFeedback()
   const admin = useAuth((s) => s.user?.role === 'super_admin')
   // executives need the bulk_add_leads permission granted by an admin
   const canBulk = useAuth((s) => s.user?.role === 'sales_executive' && !!s.user?.permissions?.includes('bulk_add_leads'))
@@ -122,7 +124,7 @@ export default function Leads() {
       a.click()
       URL.revokeObjectURL(url)
     } catch {
-      window.alert('Failed to export leads.')
+      notify('Failed to export leads', 'error')
     } finally {
       setExporting(false)
     }
@@ -145,13 +147,13 @@ export default function Leads() {
       <PageHeader title="Leads" />
 
       {/* toolbar: search on the left, filters + actions on the right */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1.5, mb: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: { xs: 'wrap', lg: 'nowrap' }, gap: 1.25, mb: 1.5 }}>
         <TextField
           size="small" placeholder="Search leads…" value={search}
-          onChange={(e) => reset(setSearch)(e.target.value)} sx={{ width: { xs: '100%', sm: 280 } }}
+          onChange={(e) => reset(setSearch)(e.target.value)} sx={{ flex: { lg: '1 1 160px' }, minWidth: { lg: 160 }, maxWidth: { lg: 280 }, width: { xs: '100%', lg: 'auto' } }}
           slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> } }}
         />
-        <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end' }}>
+        <Box sx={{ display: 'flex', gap: 1.25, flexWrap: { xs: 'wrap', lg: 'nowrap' }, alignItems: 'center', justifyContent: 'flex-end' }}>
         <TextField select size="small" label="Status" value={status} onChange={(e) => reset(setStatus)(e.target.value)} sx={{ width: 150 }}>
           <MenuItem value="all">All</MenuItem>
           {STATUSES.map((s) => <MenuItem key={s} value={s}>{statusLabel(s)}</MenuItem>)}

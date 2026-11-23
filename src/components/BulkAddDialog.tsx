@@ -77,7 +77,7 @@ export default function BulkAddDialog({ open, onClose, onSaved }: Props) {
           <>
             {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
             {rows.map((row, i) => (
-              <Box key={i} sx={{ border: '1px solid #E2E8F0', borderRadius: 2, p: 2, mb: 2 }}>
+              <Box key={i} sx={{ border: '1px solid #E2E8F0', borderRadius: 1.25, p: 2, mb: 2 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
                   <Typography variant="subtitle2" color="text.secondary">Customer {i + 1}</Typography>
                   <IconButton size="small" onClick={() => remove(i)}><DeleteIcon fontSize="small" /></IconButton>

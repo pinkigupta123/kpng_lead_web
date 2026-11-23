@@ -4,6 +4,7 @@ import api, { errMsg } from '../api/client'
 import { useFeedback } from './Feedback'
 import { STATUSES, statusLabel } from '../types'
 import { localDate } from '../dates'
+import { useCloseLead, useConfirmSale } from '../hooks/useConfirmSale'
 
 export interface CompleteTarget {
   id: number
@@ -11,11 +12,15 @@ export interface CompleteTarget {
   customerName?: string
   /** the lead's current status, pre-selected in the dialog */
   status?: string
+  /** the lead this follow-up belongs to (needed to open the order form when the sale is confirmed) */
+  customerId?: number
 }
 
 /** "Mark follow-up done": outcome note, optional status change, optional next follow-up date. */
 export default function CompleteFollowupDialog({ target, onClose, onDone }: { target: CompleteTarget | null; onClose: () => void; onDone: () => void }) {
   const { notify } = useFeedback()
+  const confirmSale = useConfirmSale()
+  const closeLead = useCloseLead()
   const [outcome, setOutcome] = useState('')
   const [status, setStatus] = useState('')
   const [next, setNext] = useState('')
@@ -61,7 +66,12 @@ export default function CompleteFollowupDialog({ target, onClose, onDone }: { ta
       </DialogTitle>
       <DialogContent sx={{ display: 'grid', gap: 2, pt: '16px !important' }}>
         <TextField label="What happened? (outcome)" multiline minRows={3} value={outcome} onChange={(e) => setOutcome(e.target.value)} placeholder="e.g. Called, customer will visit on Saturday" autoFocus />
-        <TextField select label="Lead status" value={status} onChange={(e) => setStatus(e.target.value)}>
+        <TextField select label="Lead status" value={status}
+          onChange={(e) => (e.target.value === 'purchased' && target?.customerId && target.status !== 'purchased'
+            ? confirmSale(target.customerId, onClose, onDone)
+            : e.target.value === 'closed' && target?.customerId && target.status !== 'closed'
+            ? closeLead(target.customerId, onDone, onClose)
+            : setStatus(e.target.value))}>
           {STATUSES.map((s) => <MenuItem key={s} value={s}>{statusLabel(s)}</MenuItem>)}
         </TextField>
         <TextField type="date" label="Next follow-up (optional)" value={next} onChange={(e) => setNext(e.target.value)}

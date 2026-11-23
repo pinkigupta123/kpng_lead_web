@@ -8,6 +8,7 @@ import { useFeedback } from '../components/Feedback'
 import { useAuth } from '../store/auth'
 import { useLeadOptions } from '../hooks/useLeadOptions'
 import { localDate } from '../dates'
+import { useCloseLead, useConfirmSale } from '../hooks/useConfirmSale'
 import { STATUSES, statusLabel, type CustomerStatus } from '../types'
 
 interface F {
@@ -46,8 +47,11 @@ export default function LeadForm({ embedded = false, leadId, onDone, onCancel }:
   const edit = !!id
   const nav = useNavigate()
   const { notify } = useFeedback()
+  const confirmSale = useConfirmSale()
+  const closeLead = useCloseLead()
+  const [savedStatus, setSavedStatus] = useState('new')
   const me = useAuth((x) => x.user)
-  const { register, handleSubmit, reset, control, watch, formState: { errors } } = useForm<F>({ defaultValues: EMPTY })
+  const { register, handleSubmit, reset, control, watch, setValue, formState: { errors } } = useForm<F>({ defaultValues: EMPTY })
   const { options: leadOptions } = useLeadOptions()
   const currentSource = watch('lead_source')
   const [fetching, setFetching] = useState(edit)
@@ -64,6 +68,7 @@ export default function LeadForm({ embedded = false, leadId, onDone, onCancel }:
         device_model: d.device_model || '', customer_query: d.customer_query || '', status: d.status,
         followup_date: d.followup_date ? String(d.followup_date).slice(0, 10) : '', notes: d.notes || '',
       })
+      setSavedStatus(d.status)
     }).catch(() => { notify('Failed to load lead', 'error'); if (onCancel) onCancel(); else nav(-1) }).finally(() => setFetching(false))
   }, [id, reset, nav, notify])
 
@@ -163,7 +168,12 @@ export default function LeadForm({ embedded = false, leadId, onDone, onCancel }:
           {field('customer_query', 'Customer query', { multiline: true, size: 12 })}
           <Grid size={{ xs: 12, md: 6 }}>
             {edit ? (
-              <TextField select fullWidth label="Status" defaultValue="new" {...register('status')} slotProps={{ select: { native: true } }}>
+              <TextField select fullWidth label="Status" defaultValue="new"
+                {...register('status', { onChange: (e) => {
+                  // a sale is confirmed through the order form, not by picking a status
+                  if (e.target.value === 'purchased' && savedStatus !== 'purchased') { setValue('status', savedStatus as CustomerStatus); confirmSale(Number(id), undefined, () => nav(`/leads/${id}`)) }
+                  if (e.target.value === 'closed' && savedStatus !== 'closed') { setValue('status', savedStatus as CustomerStatus); closeLead(Number(id), () => nav(`/leads/${id}`)) }
+                } })} slotProps={{ select: { native: true } }}>
                 {STATUSES.map((s) => <option key={s} value={s}>{statusLabel(s)}</option>)}
               </TextField>
             ) : (

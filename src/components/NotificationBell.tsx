@@ -90,7 +90,7 @@ export default function NotificationBell() {
             return (
               <Box key={f.id} onClick={() => go(f.customer_id)}
                 sx={{ px: 2, py: 1.25, display: 'flex', alignItems: 'center', gap: 1.5, cursor: 'pointer', borderBottom: '1px solid #F1F5F9', '&:hover': { bgcolor: '#F5F8FB' } }}>
-                <Box sx={{ width: 6, alignSelf: 'stretch', borderRadius: 3, bgcolor: label.color, flexShrink: 0 }} />
+                <Box sx={{ width: 6, alignSelf: 'stretch', borderRadius: 1.5, bgcolor: label.color, flexShrink: 0 }} />
                 <Box sx={{ minWidth: 0, flex: 1 }}>
                   <Typography noWrap sx={{ fontWeight: 600, fontSize: '0.88rem' }}>{f.customer?.name}</Typography>
                   <Typography noWrap variant="caption" color="text.secondary">
@@ -102,7 +102,7 @@ export default function NotificationBell() {
                 </Box>
                 <Tooltip title="Mark done">
                   <IconButton size="small" color="success"
-                    onClick={(e) => { e.stopPropagation(); setAnchor(null); setComplete({ id: f.id, scheduled_for: f.scheduled_for, customerName: f.customer?.name, status: f.customer?.status }) }}>
+                    onClick={(e) => { e.stopPropagation(); setAnchor(null); setComplete({ id: f.id, scheduled_for: f.scheduled_for, customerName: f.customer?.name, status: f.customer?.status, customerId: f.customer_id }) }}>
                     <CheckIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>

@@ -250,16 +250,29 @@ export default function Dashboard() {
     { title: 'Total leads', value: stats.total, icon: PeopleIcon, color: '#2F4A6D', caption: stats.delta === null ? periodLabel : `${periodLabel} · vs previous`, delta: stats.delta },
     { title: 'New today', value: stats.today, icon: TodayIcon, color: '#3A8F6B', caption: `${stats.yesterday} yesterday` },
     { title: 'Open pipeline', value: stats.pipeline, icon: HourglassTopIcon, color: '#7C5CBF', caption: `${stats.interestedOpen} interested` },
-    { title: 'Conversion rate', value: `${stats.conversion}%`, icon: TrendingUpIcon, color: '#C8963E', caption: `${stats.purchased} purchased · ${periodLabel.toLowerCase()}` },
+    { title: 'Conversion rate', value: `${stats.conversion}%`, icon: TrendingUpIcon, color: '#C8963E', caption: `${stats.purchased} confirmed · ${periodLabel.toLowerCase()}` },
     { title: 'Follow-ups due', value: stats.due, icon: PendingActionsIcon, color: '#C0504D', caption: `${stats.overdue} overdue` },
     { title: 'Not contacted', value: stats.untouched, icon: PhoneMissedIcon, color: '#64748B', caption: 'still "new" after 2+ days' },
   ]
 
   return (
     <Box>
+      {/* Greeting masthead */}
+      <Box sx={{
+        position: 'relative', overflow: 'hidden', borderRadius: 1.25, mb: 2, px: { xs: 2, md: 3 }, py: { xs: 2, md: 2.25 }, color: '#fff', bgcolor: '#0F1B2D',
+        backgroundImage: 'radial-gradient(90% 140% at 100% 0%, rgba(92,143,224,0.38) 0%, rgba(15,27,45,0) 60%), linear-gradient(135deg, #0F1B2D 0%, #16263B 100%)',
+        '&::after': { content: '""', position: 'absolute', right: 120, top: -60, width: 220, height: 220, borderRadius: '50%', border: '26px solid rgba(255,255,255,0.045)', pointerEvents: 'none' },
+      }}>
+        <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.12em', color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', mb: 0.5 }}>
+          {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}
+        </Typography>
+        <Typography sx={{ fontWeight: 800, fontSize: { xs: '1.3rem', md: '1.6rem' }, letterSpacing: '-0.03em', lineHeight: 1.2 }}>
+          {new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 17 ? 'Good afternoon' : 'Good evening'}, {user?.name}
+        </Typography>
+        <Typography sx={{ color: 'rgba(255,255,255,0.68)', fontSize: '0.88rem', mt: 0.5 }}>Here is how your leads are doing</Typography>
+      </Box>
+
       <PageHeader
-        title="Dashboard"
-        subtitle={`Welcome back, ${user?.name}`}
         action={
           <>
         {admin && (
@@ -288,7 +301,7 @@ export default function Dashboard() {
       {error && <Typography color="error" sx={{ mb: 2 }}>{error}</Typography>}
 
       {/* KPIs */}
-      <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
+      <Grid container spacing={2} sx={{ mb: 2 }}>
         {cards.map((c) => (
           <Grid key={c.title} size={{ xs: 12, sm: 6, md: 4, xl: 2 }}>
             <StatCard title={c.title} value={c.value} icon={c.icon} color={c.color} caption={c.caption} delta={c.delta} invertDelta={c.invert} />
@@ -297,7 +310,7 @@ export default function Dashboard() {
       </Grid>
 
       {/* Trend + status */}
-      <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
+      <Grid container spacing={2} sx={{ mb: 2 }}>
         <Grid size={{ xs: 12, lg: 8 }}>
           <Panel title="Leads over time" height={300}>
             <ResponsiveContainer width="100%" height="100%">
@@ -344,7 +357,7 @@ export default function Dashboard() {
       </Grid>
 
       {/* Branch + products */}
-      <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
+      <Grid container spacing={2} sx={{ mb: 2 }}>
         {admin && (
           <Grid size={{ xs: 12, lg: 6 }}>
             <Panel title="Leads by branch" height={280}>
@@ -392,7 +405,7 @@ export default function Dashboard() {
                   <TableRow>
                     <TableCell>Executive</TableCell><TableCell>Branch</TableCell>
                     <TableCell align="right">Leads</TableCell><TableCell align="right">Interested</TableCell>
-                    <TableCell align="right">Purchased</TableCell><TableCell align="right">Conversion</TableCell>
+                    <TableCell align="right">Confirmed</TableCell><TableCell align="right">Conversion</TableCell>
                     <TableCell align="right">Follow-ups due</TableCell>
                   </TableRow>
                 </TableHead>

@@ -1,14 +1,15 @@
 import type { ReactNode } from 'react'
-import { Box, Typography } from '@mui/material'
+import { Box } from '@mui/material'
 
-export default function PageHeader({ title, subtitle, action }: { title: string; subtitle?: string; action?: ReactNode }) {
+/**
+ * The screen name and its one-line description now live in the top bar, so a page only keeps its action row
+ * (filters, buttons). Pages with nothing to put there render nothing here.
+ */
+export default function PageHeader({ action }: { title?: string; subtitle?: string; action?: ReactNode }) {
+  if (!action) return null
   return (
-    <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
-      <Box>
-        <Typography variant="h4" component="h1">{title}</Typography>
-        {subtitle && <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{subtitle}</Typography>}
-      </Box>
-      {action && <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>{action}</Box>}
+    <Box sx={{ mb: 1.5, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap', gap: 1.25 }}>
+      {action}
     </Box>
   )
 }

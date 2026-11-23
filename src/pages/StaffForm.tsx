@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Alert, Button, Checkbox, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, ListItemText, MenuItem, TextField } from '@mui/material'
+import { Alert, Box, Button, Checkbox, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, ListItemText, MenuItem, TextField } from '@mui/material'
 import Grid from '@mui/material/Grid'
 import { Controller, useForm } from 'react-hook-form'
 import api, { errMsg } from '../api/client'
@@ -37,37 +37,41 @@ interface Props {
 export default function StaffForm({ open, executiveId, onClose, onSaved }: Props) {
   const edit = !!executiveId
   const { notify } = useFeedback()
-  const { register, handleSubmit, reset, control, watch, formState: { errors } } = useForm<F>({ defaultValues: EMPTY })
+  const { register, handleSubmit, reset, control, watch, setValue, formState: { errors } } = useForm<F>({ defaultValues: EMPTY })
   const [fetching, setFetching] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [branches, setBranches] = useState<string[]>([])
+  const [rows, setRows] = useState<{ name: string; company_id: number; is_active: boolean }[]>([])
+  const [companies, setCompanies] = useState<{ id: number; name: string; is_active: boolean }[]>([])
+  const [companyId, setCompanyId] = useState<number | ''>('')
   const [inactive, setInactive] = useState<Set<string>>(new Set())
   const [branchesLoading, setBranchesLoading] = useState(true)
   const currentBranch = watch('branch')
   const currentDesignation = watch('designation')
+  const branches = rows.filter((r) => companyId === '' || r.company_id === companyId).map((r) => r.name)
+  useEffect(() => {
+    if (companyId === '' && currentBranch) { const r = rows.find((x) => x.name === currentBranch); if (r) setCompanyId(r.company_id) }
+  }, [currentBranch, rows, companyId])
   const { options: leadOptions, permissions: permissionCatalog } = useLeadOptions()
 
-  // Branch list comes from the branches table
+  // Companies and branches come from the shared tables (same ones KPNG Technology uses)
   useEffect(() => {
     if (!open) return
     setBranchesLoading(true)
-    api.get('/branches')
-      .then((r) => {
-        // tolerate { data: [...] }, { data: { data: [...] } } and a bare array
-        let list: any = r.data
-        while (list && !Array.isArray(list) && list.data) list = list.data
-        const all: any[] = Array.isArray(list) ? list : []
-        setBranches(all.filter((b) => b?.name).map((b) => (b.is_active === false ? `${b.name}` : b.name)))
-        setInactive(new Set(all.filter((b) => b?.name && b.is_active === false).map((b) => b.name)))
+    Promise.all([api.get('/lead/org/companies'), api.get('/lead/org/branches')])
+      .then(([c, b]) => {
+        setCompanies(c.data)
+        setRows(b.data.filter((x: any) => x?.name))
+        setInactive(new Set<string>(b.data.filter((x: any) => x?.is_active === false).map((x: any) => x.name)))
       })
-      .catch(() => notify('Failed to load branches', 'error'))
+      .catch(() => notify('Failed to load companies and branches', 'error'))
       .finally(() => setBranchesLoading(false))
   }, [open, notify])
 
   // Reset / load whenever the dialog opens
   useEffect(() => {
     if (!open) return
+    setCompanyId('')
     setError('')
     if (!executiveId) {
       reset(EMPTY)
@@ -124,6 +128,14 @@ export default function StaffForm({ open, executiveId, onClose, onSaved }: Props
                   <TextField fullWidth type="email" label="Email" autoComplete="off" {...register('email')} />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField select fullWidth label="Company" value={companyId} disabled={branchesLoading}
+                    onChange={(e) => { setCompanyId(e.target.value === '' ? '' : Number(e.target.value)); setValue('branch', '') }}
+                    helperText={!branchesLoading && companies.length === 0 ? 'No company yet — add one under Admin › Branches' : undefined}>
+                    <MenuItem value="">All companies</MenuItem>
+                    {companies.map((c) => <MenuItem key={c.id} value={c.id}>{c.name}{c.is_active ? '' : ' (inactive)'}</MenuItem>)}
+                  </TextField>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Controller
                     name="branch"
                     control={control}
@@ -131,7 +143,7 @@ export default function StaffForm({ open, executiveId, onClose, onSaved }: Props
                     render={({ field }) => (
                       <TextField select fullWidth label="Branch *" {...field} disabled={branchesLoading} error={!!errors.branch} helperText={errors.branch?.message}>
                         {/* keep a legacy value selectable if it is no longer in the branch table */}
-                        {currentBranch && !branches.includes(currentBranch) && <MenuItem value={currentBranch}>{currentBranch}</MenuItem>}
+                        {currentBranch && !rows.some((r) => r.name === currentBranch) && <MenuItem value={currentBranch}>{currentBranch}</MenuItem>}
                         {branches.map((b) => <MenuItem key={b} value={b}>{b}{inactive.has(b) ? ' (inactive)' : ''}</MenuItem>)}
                       </TextField>
                     )}
@@ -192,10 +204,11 @@ export default function StaffForm({ open, executiveId, onClose, onSaved }: Props
           )}
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={onClose} disabled={saving}>Cancel</Button>
+          <Box sx={{ flex: 1 }} />
           <Button type="submit" variant="contained" disabled={saving || fetching}>
             {saving ? 'Saving…' : edit ? 'Save changes' : 'Create executive'}
           </Button>
+          <Button variant="outlined" onClick={onClose} disabled={saving}>Cancel</Button>
         </DialogActions>
       </form>
     </Dialog>

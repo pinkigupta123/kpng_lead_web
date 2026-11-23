@@ -1,4 +1,5 @@
 import { Chip } from '@mui/material'
+import { statusLabel } from '../types'
 
 export const STATUS_COLORS: Record<string, string> = {
   new: '#2F4A6D',
@@ -17,7 +18,7 @@ export default function StatusChip({ status }: { status: string }) {
   return (
     <Chip
       size="small"
-      label={status}
+      label={statusLabel(status)}
       sx={{
         backgroundColor: `${c}20`,
         color: c,

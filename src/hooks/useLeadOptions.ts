@@ -3,7 +3,7 @@ import api from '../api/client'
 import type { LeadOption, OptionType, PermissionDef } from '../types'
 
 type Grouped = Record<OptionType, LeadOption[]>
-const EMPTY: Grouped = { lead_source: [], designation: [] }
+const EMPTY: Grouped = { lead_source: [], designation: [], card_provider: [], upi_provider: [], finance_provider: [], order_offer: [] }
 
 /** Admin-managed dropdown values + the grantable permission catalog. */
 export function useLeadOptions(includeInactive = false) {
