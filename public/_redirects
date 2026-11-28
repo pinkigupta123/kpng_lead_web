@@ -1,0 +1,6 @@
+# Netlify rules, applied top to bottom (Vercel uses vercel.json instead).
+# The site is HTTPS and the backend is plain HTTP, so Netlify forwards API requests server-side.
+/api/*   http://103.218.127.27:8080/index.php/api/:splat   200
+
+# Single-page app: every other path (such as /login) loads the app.
+/*       /index.html                                       200
